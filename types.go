@@ -2,7 +2,7 @@ package dataflow
 
 type (
 	// intermediate stage computations
-	Execution func(args ...interface{}) (interface{}, error)
+	StageExecution func(args ...interface{}) (interface{}, error)
 
 	// execution over entire network
 	TotalExecution func(arg interface{}) (interface{}, error)
@@ -10,29 +10,28 @@ type (
 	// shutdown entire execution network
 	Collapse func()
 
+	// execution stage description
 	Stage struct {
 		label    string
 		requires []string
-		exec     Execution
-		in       []<-chan either
-		out      []chan<- either
+		exec     StageExecution
 	}
 
+	// contains checked scheme of execution network flow
 	ExecutionGraph struct {
-		stages map[string]*Stage
-		in     chan either
-		out    chan either
+		stages map[string]Stage
+	}
+
+	// node of execution network
+	node struct {
+		label string
+		exec  StageExecution
+		in    []<-chan either
+		out   []chan<- either
 	}
 
 	either struct {
 		Value interface{}
 		Err   error
 	}
-
-	// fixme need it?
-	compoundError []error
 )
-
-func (c compoundError) Error() string {
-	panic("implement me")
-}

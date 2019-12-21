@@ -1,12 +1,11 @@
 package dataflow
 
 import (
-	"errors"
 	"fmt"
 )
 
 const (
-	// mandatory labels
+	// terminal labels
 	Input = "input"
 	Final = "final"
 )
@@ -17,33 +16,23 @@ var (
 )
 
 // Constructor for intermediate execution stages.
-func NewStage(label string, exec Execution, requires ...string) *Stage {
-	return &Stage{label: label, requires: requires, exec: exec}
+func NewStage(label string, exec StageExecution, requires ...string) Stage {
+	return Stage{label: label, exec: exec, requires: requires}
 }
 
 // Stage used for initial argument distribution in the network.
-func startStage() *Stage {
-	return &Stage{label: Input, exec: func(args ...interface{}) (interface{}, error) { return args[0], nil }}
+func startStage() Stage {
+	return Stage{label: Input, exec: func(args ...interface{}) (interface{}, error) { return args[0], nil }}
 }
 
 // Stage used for aggregation results from the network.
-func finalStage(exec Execution, requires ...string) *Stage {
-	return &Stage{label: Final, requires: requires, exec: exec}
+func finalStage(exec StageExecution, requires ...string) Stage {
+	return Stage{label: Final, exec: exec, requires: requires}
 }
 
-func NewExecutionGraph(finalInputs []string, finalExec Execution, stages ...*Stage) (*ExecutionGraph, error) {
-	var (
-		start = startStage()
-		final = finalStage(finalExec, finalInputs...)
-	)
-
-	// construct graph from stages
-	stageMap := make(map[string]*Stage) // fixme use *nodes internally instead of stages (and stages must be just a shallow information)
+func NewExecutionGraph(finalInputs []string, finalExec StageExecution, stages ...Stage) (*ExecutionGraph, error) {
+	stageMap := make(map[string]Stage)
 	for _, stage := range stages {
-		if stage == nil {
-			return nil, errors.New("empty stage")
-		}
-
 		stageMap[stage.label] = stage
 	}
 
@@ -52,46 +41,55 @@ func NewExecutionGraph(finalInputs []string, finalExec Execution, stages ...*Sta
 	}
 
 	// add terminal stages
-	stageMap[Input] = start
-	stageMap[Final] = final
+	stageMap[Input] = startStage()
+	stageMap[Final] = finalStage(finalExec, finalInputs...)
 
-	// wiring with data pipes
-	for _, stage := range stageMap {
+	return &ExecutionGraph{stages: stageMap}, nil
+}
+
+// On each method invocation a new flow network will be spawned,
+// independently processing incoming requests.
+func (g ExecutionGraph) Run() (TotalExecution, Collapse) {
+	var (
+		in     = make(chan either, 1)
+		out    = make(chan either, 1)
+		stages = make(map[string]*node)
+	)
+
+	// construct flow network
+	for label, stage := range g.stages {
+		stages[label] = &node{label: label, exec: stage.exec}
+	}
+
+	// data pipes wiring
+	for label, stage := range g.stages {
+		n := stages[label]
 		for _, required := range stage.requires {
 			pipe := make(chan either, 1)
-			stage.in = append(stage.in, pipe)
-			stageMap[required].out = append(stageMap[required].out, pipe)
+			n.in = append(n.in, pipe)
+			stages[required].out = append(stages[required].out, pipe)
 		}
 	}
 
-	// graph communication with external world
-	in := make(chan either, 1)
-	out := make(chan either, 1)
-	start.in = []<-chan either{in}
-	final.out = []chan<- either{out}
+	// communication with external world
+	stages[Input].in = []<-chan either{in}
+	stages[Final].out = []chan<- either{out}
 
-	return &ExecutionGraph{stages: stageMap, in: in, out: out}, nil
-}
-
-// Should only be invoked once!
-func (g *ExecutionGraph) Run() (TotalExecution, Collapse) {
-
-	// todo what about running multiple networks on the same graph?
-
-	for _, stage := range g.stages {
-		go func(s *Stage) { runStage(s) }(stage)
+	// spawn network
+	for _, stage := range stages {
+		go func(s *node) { runStage(s) }(stage)
 	}
 
 	var totalExec TotalExecution = func(arg interface{}) (interface{}, error) {
-		g.in <- either{Value: arg}
-		result := <-g.out
+		in <- either{Value: arg}
+		result := <-out
 		return result.Value, result.Err
 	}
 
-	return totalExec, func() { close(g.in) }
+	return totalExec, func() { close(in) }
 }
 
-func runStage(stage *Stage) {
+func runStage(stage *node) {
 	for {
 		var executionErr error
 
@@ -104,7 +102,7 @@ func runStage(stage *Stage) {
 				// todo remove
 				//fmt.Printf("stage %s collapsed\n", stage.label)
 
-				// propagate network collapse
+				// propagate network collapsing
 				for _, successor := range stage.out {
 					close(successor)
 				}
@@ -114,7 +112,7 @@ func runStage(stage *Stage) {
 
 			args[i] = arg.Value
 			if arg.Err != nil {
-				// fixme maybe collect all distinct errors instead of returning only last seen ??
+				// currently catches only last significant error
 				executionErr = arg.Err
 			}
 		}
@@ -143,7 +141,7 @@ func runStage(stage *Stage) {
 	}
 }
 
-func analyze(stages map[string]*Stage) error {
+func analyze(stages map[string]Stage) error {
 
 	// todo
 	//  - labels interfering with Input/Final

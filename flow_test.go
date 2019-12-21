@@ -6,7 +6,7 @@ import (
 )
 
 func TestComputation(t *testing.T) {
-	// Emulated network:
+	// Emulated flow network:
 	//
 	//            +----------- B:( -1 ) -------------+
 	//            |                                  |
@@ -14,7 +14,7 @@ func TestComputation(t *testing.T) {
 	//            |                   |
 	//            +----> D:( +5 ) ----+
 	//
-	stages := []*Stage{
+	stages := []Stage{
 		NewStage("b", func(args ...interface{}) (i interface{}, err error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("unexpected arguments: %v", args)
