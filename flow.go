@@ -15,6 +15,8 @@ var (
 //  ErrEmptyStage = errors.New("empty stage")
 )
 
+/* Execution stages */
+
 // Constructor for intermediate execution stages.
 func NewStage(label string, exec StageExecution, requires ...string) Stage {
 	return Stage{label: label, exec: exec, requires: requires}
@@ -29,6 +31,8 @@ func startStage() Stage {
 func finalStage(exec StageExecution, requires ...string) Stage {
 	return Stage{label: Final, exec: exec, requires: requires}
 }
+
+/* Execution graph */
 
 func NewExecutionGraph(finalInputs []string, finalExec StageExecution, stages ...Stage) (*ExecutionGraph, error) {
 	stageMap := make(map[string]Stage)
@@ -98,10 +102,6 @@ func runStage(stage *node) {
 		for i := 0; i < len(stage.in); i++ {
 			arg, ok := <-stage.in[i]
 			if !ok {
-
-				// todo remove
-				//fmt.Printf("stage %s collapsed\n", stage.label)
-
 				// propagate network collapsing
 				for _, successor := range stage.out {
 					close(successor)
@@ -145,10 +145,11 @@ func analyze(stages map[string]Stage) error {
 
 	// todo
 	//  - labels interfering with Input/Final
+	//  - intermediate stage has no inputs/outputs
 	//  - loops
 	//  - unreachable states
 	//  - dangling executions
-	//  - recursive (loop as well)
+	//  - recursive (i.e. loop as well?)
 
 	return nil
 }

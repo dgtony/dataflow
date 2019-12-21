@@ -5,15 +5,15 @@ import (
 	"testing"
 )
 
-func TestComputation(t *testing.T) {
-	// Emulated flow network:
-	//
-	//            +----------- B:( -1 ) -------------+
-	//            |                                  |
-	// Input:(x) -+-> C:( +2 ) -> E:( * ) -> Final:( + ) -> end.
-	//            |                   |
-	//            +----> D:( +5 ) ----+
-	//
+// Emulated flow network:
+//
+//            +----------- B:( -1 ) -------------+
+//            |                                  |
+// Input:(x) -+-> C:( +2 ) -> E:( * ) -> Final:( + ) -> end.
+//            |                   |
+//            +----> D:( +5 ) ----+
+//
+func testExecution() (*ExecutionGraph, error) {
 	stages := []Stage{
 		NewStage("b", func(args ...interface{}) (i interface{}, err error) {
 			if len(args) != 1 {
@@ -93,7 +93,11 @@ func TestComputation(t *testing.T) {
 	}
 
 	// construct execution network
-	graph, err := NewExecutionGraph(finalInputs, finalExec, stages...)
+	return NewExecutionGraph(finalInputs, finalExec, stages...)
+}
+
+func TestComputation(t *testing.T) {
+	graph, err := testExecution()
 	if err != nil {
 		t.Errorf("constructing execution graph: %v", err)
 	}
@@ -125,4 +129,18 @@ func TestComputation(t *testing.T) {
 	}
 
 	collapse()
+}
+
+func BenchmarkExecutionGraph(b *testing.B) {
+	graph, err := testExecution()
+	if err != nil {
+		b.Errorf("constructing execution graph: %v", err)
+	}
+
+	exec, _ := graph.Run()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = exec(i)
+	}
 }
