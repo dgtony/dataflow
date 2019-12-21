@@ -1,18 +1,14 @@
 package dataflow
 
 import (
+	"errors"
 	"fmt"
 )
 
 const (
 	// terminal labels
-	Input = "input"
-	Final = "final"
-)
-
-// todo expose some errors (analysis)
-var (
-//  ErrEmptyStage = errors.New("empty stage")
+	input = "input"
+	final = "final"
 )
 
 /* Execution stages */
@@ -24,29 +20,35 @@ func NewStage(label string, exec StageExecution, requires ...string) Stage {
 
 // Stage used for initial argument distribution in the network.
 func startStage() Stage {
-	return Stage{label: Input, exec: func(args ...interface{}) (interface{}, error) { return args[0], nil }}
+	return Stage{label: input, exec: func(args ...interface{}) (interface{}, error) { return args[0], nil }}
 }
 
 // Stage used for aggregation results from the network.
 func finalStage(exec StageExecution, requires ...string) Stage {
-	return Stage{label: Final, exec: exec, requires: requires}
+	return Stage{label: final, exec: exec, requires: requires}
 }
 
 /* Execution graph */
 
 func NewExecutionGraph(finalInputs []string, finalExec StageExecution, stages ...Stage) (*ExecutionGraph, error) {
-	stageMap := make(map[string]Stage)
+	var stageMap = map[string]Stage{
+		input: startStage(),
+		final: finalStage(finalExec, finalInputs...),
+	}
+
 	for _, stage := range stages {
+		if stage.label == input {
+			return nil, errors.New("label 'input' interfering with internal stage")
+		} else if stage.label == final {
+			return nil, errors.New("label 'final' interfering with internal stage")
+		}
+
 		stageMap[stage.label] = stage
 	}
 
 	if err := analyze(stageMap); err != nil {
 		return nil, err
 	}
-
-	// add terminal stages
-	stageMap[Input] = startStage()
-	stageMap[Final] = finalStage(finalExec, finalInputs...)
 
 	return &ExecutionGraph{stages: stageMap}, nil
 }
@@ -76,8 +78,8 @@ func (g ExecutionGraph) Run() (TotalExecution, Collapse) {
 	}
 
 	// communication with external world
-	stages[Input].in = []<-chan either{in}
-	stages[Final].out = []chan<- either{out}
+	stages[input].in = []<-chan either{in}
+	stages[final].out = []chan<- either{out}
 
 	// spawn network
 	for _, stage := range stages {
@@ -139,17 +141,4 @@ func runStage(stage *node) {
 			}
 		}
 	}
-}
-
-func analyze(stages map[string]Stage) error {
-
-	// todo
-	//  - labels interfering with Input/Final
-	//  - intermediate stage has no inputs/outputs
-	//  - loops
-	//  - unreachable states
-	//  - dangling executions
-	//  - recursive (i.e. loop as well?)
-
-	return nil
 }

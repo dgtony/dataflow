@@ -26,7 +26,7 @@ func testExecution() (*ExecutionGraph, error) {
 			}
 
 			return a - 1, nil
-		}, Input),
+		}, input),
 
 		NewStage("c", func(args ...interface{}) (i interface{}, err error) {
 			if len(args) != 1 {
@@ -39,7 +39,7 @@ func testExecution() (*ExecutionGraph, error) {
 			}
 
 			return a + 2, nil
-		}, Input),
+		}, input),
 
 		NewStage("d", func(args ...interface{}) (i interface{}, err error) {
 			if len(args) != 1 {
@@ -52,7 +52,7 @@ func testExecution() (*ExecutionGraph, error) {
 			}
 
 			return a + 5, nil
-		}, Input),
+		}, input),
 
 		NewStage("e", func(args ...interface{}) (i interface{}, err error) {
 			if len(args) != 2 {
