@@ -1,14 +1,13 @@
 package dataflow
 
 import (
-	"errors"
 	"fmt"
 )
 
 const (
 	// terminal labels
-	input = "input"
-	final = "final"
+	Input = "exec-input" // used externally
+	sink  = "exec-sink"
 )
 
 /* Execution stages */
@@ -18,29 +17,27 @@ func NewStage(label string, exec StageExecution, requires ...string) Stage {
 	return Stage{label: label, exec: exec, requires: requires}
 }
 
-// Stage used for initial argument distribution in the network.
-func startStage() Stage {
-	return Stage{label: input, exec: func(args ...interface{}) (interface{}, error) { return args[0], nil }}
+// Final stage aggregates results from the network.
+func NewFinalStage(exec StageExecution, requires ...string) Stage {
+	return Stage{label: sink, exec: exec, requires: requires}
 }
 
-// Stage used for aggregation results from the network.
-func finalStage(exec StageExecution, requires ...string) Stage {
-	return Stage{label: final, exec: exec, requires: requires}
+// Stage used for initial argument distribution in the network.
+func inputStage() Stage {
+	return Stage{label: Input, exec: func(args ...interface{}) (interface{}, error) { return args[0], nil }}
 }
 
 /* Execution graph */
 
-func NewExecutionGraph(finalInputs []string, finalExec StageExecution, stages ...Stage) (*ExecutionGraph, error) {
+func NewExecutionGraph(final Stage, stages ...Stage) (*ExecutionGraph, error) {
 	var stageMap = map[string]Stage{
-		input: startStage(),
-		final: finalStage(finalExec, finalInputs...),
+		Input: inputStage(),
+		sink:  final,
 	}
 
 	for _, stage := range stages {
-		if stage.label == input {
-			return nil, errors.New("label 'input' interfering with internal stage")
-		} else if stage.label == final {
-			return nil, errors.New("label 'final' interfering with internal stage")
+		if stage.label == Input || stage.label == sink {
+			return nil, fmt.Errorf("label '%s' interfering with internal stage", stage.label)
 		}
 
 		stageMap[stage.label] = stage
@@ -53,8 +50,8 @@ func NewExecutionGraph(finalInputs []string, finalExec StageExecution, stages ..
 	return &ExecutionGraph{stages: stageMap}, nil
 }
 
-// On each method invocation a new flow network will be spawned,
-// independently processing incoming requests.
+// On each method invocation a new instance of flow network
+// will be spawned, to independently process incoming requests.
 func (g ExecutionGraph) Run() (TotalExecution, Collapse) {
 	var (
 		in     = make(chan either, 1)
@@ -78,8 +75,8 @@ func (g ExecutionGraph) Run() (TotalExecution, Collapse) {
 	}
 
 	// communication with external world
-	stages[input].in = []<-chan either{in}
-	stages[final].out = []chan<- either{out}
+	stages[Input].in = []<-chan either{in}
+	stages[sink].out = []chan<- either{out}
 
 	// spawn network
 	for _, stage := range stages {
@@ -96,11 +93,12 @@ func (g ExecutionGraph) Run() (TotalExecution, Collapse) {
 }
 
 func runStage(stage *node) {
+	var args = make([]interface{}, len(stage.in))
+
 	for {
 		var executionErr error
 
 		// wait until all arguments become available
-		args := make([]interface{}, len(stage.in))
 		for i := 0; i < len(stage.in); i++ {
 			arg, ok := <-stage.in[i]
 			if !ok {
@@ -114,31 +112,32 @@ func runStage(stage *node) {
 
 			args[i] = arg.Value
 			if arg.Err != nil {
-				// currently catches only last significant error
+				// currently catches last error only
 				executionErr = arg.Err
 			}
 		}
 
 		if executionErr != nil {
 			// if error emerged somewhere in the execution path - do not
-			//run computation, just propagate error to all successors
+			// run computation, just propagate error to all successors
 			for _, successor := range stage.out {
 				successor <- either{Err: executionErr}
 			}
 
-		} else {
-			// execute stage computation
-			val, err := stage.exec(args...)
-			if err != nil {
-				err = fmt.Errorf("stage %s: %w", stage.label, err)
-			}
+			continue
+		}
 
-			result := either{Value: val, Err: err}
+		// execute stage computation
+		val, err := stage.exec(args...)
+		if err != nil {
+			err = fmt.Errorf("stage %s: %w", stage.label, err)
+		}
 
-			// ... and fan out its result
-			for _, successor := range stage.out {
-				successor <- result
-			}
+		result := either{Value: val, Err: err}
+
+		// ... and fan out its result
+		for _, successor := range stage.out {
+			successor <- result
 		}
 	}
 }

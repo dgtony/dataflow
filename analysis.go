@@ -6,9 +6,9 @@ import (
 )
 
 func analyze(stages map[string]Stage) error {
-	if _, found := stages[input]; !found {
+	if _, found := stages[Input]; !found {
 		return errors.New("data input stage not found")
-	} else if _, found := stages[final]; !found {
+	} else if _, found := stages[sink]; !found {
 		return errors.New("final execution stage not found")
 	}
 
@@ -96,7 +96,7 @@ func consistencyCheck(graph map[string][]string) error {
 	dfs = func(n string) error {
 		visited[n] = true
 
-		if len(graph[n]) == 0 && n != final {
+		if len(graph[n]) == 0 && n != sink {
 			// dangling execution
 			return fmt.Errorf("intermediate stage with no outputs: %s", n)
 		} else {
@@ -117,7 +117,7 @@ func consistencyCheck(graph map[string][]string) error {
 		}
 	}
 
-	if err := dfs(input); err != nil {
+	if err := dfs(Input); err != nil {
 		return err
 	}
 

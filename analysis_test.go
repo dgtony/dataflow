@@ -139,54 +139,54 @@ func Test_consistencyCheck(t *testing.T) {
 		{
 			"detached input",
 			map[string][]string{
-				input: {},
+				Input: {},
 				"f1":  {"f2", "f3"},
-				"f2":  {final},
-				"f3":  {final},
+				"f2":  {sink},
+				"f3":  {sink},
 			},
 			true,
 		},
 		{
 			"no final stage",
 			map[string][]string{
-				input: {"f2"},
+				Input: {"f2"},
 				"f2":  {"f3"},
-				final: {},
+				sink:  {},
 			},
 			true,
 		},
 		{
 			"dangling execution results",
 			map[string][]string{
-				input: {"f1", "f2"},
+				Input: {"f1", "f2"},
 				"f1":  {"f3"},
 				"f2":  {"f4", "f5"}, // f4 missing output
-				"f3":  {final},
-				"f5":  {final},
+				"f3":  {sink},
+				"f5":  {sink},
 			},
 			true,
 		},
 		{
 			"unreachable stage",
 			map[string][]string{
-				input: {"f1", "f2"},
+				Input: {"f1", "f2"},
 				"f1":  {"f3"},
 				"f2":  {"f4"},
-				"f3":  {final},
-				"f4":  {final},
-				"f5":  {final}, // unreachable
+				"f3":  {sink},
+				"f4":  {sink},
+				"f5":  {sink}, // unreachable
 			},
 			true,
 		},
 		{
 			"normal execution",
 			map[string][]string{
-				input: {"f1", "f2"},
+				Input: {"f1", "f2"},
 				"f1":  {"f3"},
 				"f2":  {"f4", "f5"},
-				"f3":  {final},
-				"f4":  {final},
-				"f5":  {final},
+				"f3":  {sink},
+				"f4":  {sink},
+				"f5":  {sink},
 			},
 			false,
 		},

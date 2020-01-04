@@ -26,7 +26,7 @@ func testExecution() (*ExecutionGraph, error) {
 			}
 
 			return a - 1, nil
-		}, input),
+		}, Input),
 
 		NewStage("c", func(args ...interface{}) (i interface{}, err error) {
 			if len(args) != 1 {
@@ -39,7 +39,7 @@ func testExecution() (*ExecutionGraph, error) {
 			}
 
 			return a + 2, nil
-		}, input),
+		}, Input),
 
 		NewStage("d", func(args ...interface{}) (i interface{}, err error) {
 			if len(args) != 1 {
@@ -52,7 +52,7 @@ func testExecution() (*ExecutionGraph, error) {
 			}
 
 			return a + 5, nil
-		}, input),
+		}, Input),
 
 		NewStage("e", func(args ...interface{}) (i interface{}, err error) {
 			if len(args) != 2 {
@@ -73,8 +73,7 @@ func testExecution() (*ExecutionGraph, error) {
 		}, "c", "d"),
 	}
 
-	finalInputs := []string{"b", "e"}
-	finalExec := func(args ...interface{}) (i interface{}, err error) {
+	fin := NewFinalStage(func(args ...interface{}) (i interface{}, err error) {
 		if len(args) != 2 {
 			return nil, fmt.Errorf("unexpected arguments: %v", args)
 		}
@@ -90,10 +89,10 @@ func testExecution() (*ExecutionGraph, error) {
 		}
 
 		return b + e, nil
-	}
+	}, "b", "e")
 
 	// construct execution network
-	return NewExecutionGraph(finalInputs, finalExec, stages...)
+	return NewExecutionGraph(fin, stages...)
 }
 
 func TestComputation(t *testing.T) {

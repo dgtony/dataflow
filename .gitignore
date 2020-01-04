@@ -1,4 +1,3 @@
 *.out
-/*.log
-/.idea
-
+*.log
+.idea
