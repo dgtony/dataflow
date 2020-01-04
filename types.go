@@ -8,7 +8,7 @@ type (
 	TotalExecution func(arg interface{}) (interface{}, error)
 
 	// shutdown entire execution network
-	Collapse func()
+	Destructor func()
 
 	// execution stage description
 	Stage struct {

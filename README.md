@@ -1,7 +1,7 @@
 
 ## Overview
 
-Dataflow is a pretty simple flow network library for parallelizing arbitrary computations.
+Dataflow is a pretty simple flow-network library for paralleling arbitrary computations.
 
 The basic idea: if there is potentially long-running computation that can be represented as a directed 
 non-2-degenerate (i.e. not a line) graph with several stages in its nodes, one can reduce overall execution time
@@ -11,9 +11,9 @@ This kind of optimization may be especially useful for speeding up complex CPU- 
 
 ## Usage
 
-Library takes execution plan as a set of stages and its requirements, and constructs and spawns special flow 
-network that will automatically parallelize and optimally run given computation in order to reduce total execution 
-time as much as possible.
+Library takes execution plan as a set of stages and its requirements, and constructs and spawns special *flow-network*
+that will automatically parallelize and optimally run given computation in order to reduce total execution time as much
+as possible.
  
 It's easier to understand with a specific example. Let's say we need to compute following expression:
 
@@ -105,13 +105,13 @@ Now having all the stages we can construct graph of execution:
 ```
 
 Library verifies provided stages for consistency, presence of loop etc. and in case of success returns
-*execution graph*. Execution graph is just a blueprint for constructing computational flow network.
+*execution graph*. Execution graph is just a blueprint for constructing computational flow-network.
 
 ```go
     execution, collapse := graph.Run()
 ```
 
-On each invocation of `Run` we spawn a new independent instance of flow network, ready to make computations. Hence if
+On each invocation of `Run` we spawn a new independent instance of flow-network, ready to make computations. Hence if
 execution is heavily I/O-bound it's reasonable to run multiple instances and distribute load among them.
 
 So now entire flow network is represented by single function `execution` with a following signature:
@@ -136,7 +136,7 @@ it just if it was an ordinary hand-written function:
     }
 ```
 
-When all the computations are done and flow network is no longer needed we can destroy it and release runtime
+When all the computations are done and flow-network is no longer needed we can destroy it and release runtime
 resources using callback provided by the library.
 
 ```go
@@ -157,7 +157,7 @@ Execution overhead depends on total number of stages and is pretty low. Here are
 above with 5 stages running on a Macbook Pro 2014:
 
 ```
-BenchmarkExample-8               	  294891	      3834 ns/op	      56 B/op	       6 allocs/op
+BenchmarkExample-4    294891    3834 ns/op    56 B/op    6 allocs/op
 ```
 
 For our specific example it takes less than 4 microseconds to complete entire processing and return results. Sure

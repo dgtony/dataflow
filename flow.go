@@ -52,7 +52,7 @@ func NewExecutionGraph(final Stage, stages ...Stage) (*ExecutionGraph, error) {
 
 // On each method invocation a new instance of flow network
 // will be spawned, to independently process incoming requests.
-func (g ExecutionGraph) Run() (TotalExecution, Collapse) {
+func (g ExecutionGraph) Run() (TotalExecution, Destructor) {
 	var (
 		in     = make(chan either, 1)
 		out    = make(chan either, 1)
